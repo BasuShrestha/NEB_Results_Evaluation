@@ -1,6 +1,7 @@
 import sys
 import pandas as pd
 import numpy as np
+from fpdf import FPDF
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QLabel, QTableWidget, QTableWidgetItem
 )
@@ -43,6 +44,17 @@ class MarksAnalyzerApp(QWidget):
         self.table = QTableWidget()
         self.layout.addWidget(self.table)
 
+        self.report_btn = QPushButton("Generate Report")
+        self.report_btn.clicked.connect(self.generate_report)
+        self.layout.addWidget(self.report_btn)
+
+        self.export_btn = QPushButton("Export Report")
+        self.export_btn.clicked.connect(lambda: self.export_report(report_df))
+        self.export_btn.setEnabled(False)
+        self.layout.addWidget(self.export_btn)
+
+        self.export_btn.setEnabled(True)
+
         # Set Layout
         self.setLayout(self.layout)
 
@@ -72,7 +84,7 @@ class MarksAnalyzerApp(QWidget):
             return
 
         # Merge data
-        merged_data = pd.merge(self.marks_data, self.details_data, left_on='Symbol/Reg', right_on='Symbol Number')
+        merged_data = pd.merge(self.marks_data, self.details_data, left_on='Name/ DOB', right_on='Name')
 
         # Extract subjects and grades
         subjects = ['BIOLOGY (TH)', 'CHEMISTRY (TH)', 'COM.ENGLISH (TH)', 'COM.MATHEMATICS (TH)', 
@@ -112,7 +124,7 @@ class MarksAnalyzerApp(QWidget):
 
     def analyze_distribution(self):
         # Merge Data
-        merged_data = pd.merge(self.marks_data, self.details_data, left_on='Symbol/Reg', right_on='Symbol Number')
+        merged_data = pd.merge(self.marks_data, self.details_data, left_on='Name/ DOB', right_on='Name')
 
         # Calculate Grade Distribution
         grade_counts = merged_data['SEE Grade'].value_counts()
@@ -127,7 +139,18 @@ class MarksAnalyzerApp(QWidget):
         self.canvas.draw()
 
         # Display Table
-        self.display_table(merged_data[['Name', 'SEE Grade', 'GPA']])
+        # self.display_table(merged_data[['Name', 'SEE Grade', 'GPA']])
+        self.display_table(merged_data[['Name', 'GPA']])
+
+
+    # def display_table(self, data):
+    #     self.table.setRowCount(len(data))
+    #     self.table.setColumnCount(len(data.columns))
+    #     self.table.setHorizontalHeaderLabels(data.columns)
+
+    #     for i, row in data.iterrows():
+    #         for j, value in enumerate(row):
+    #             self.table.setItem(i, j, QTableWidgetItem(str(value)))
 
     def display_table(self, data):
         self.table.setRowCount(len(data))
@@ -137,6 +160,32 @@ class MarksAnalyzerApp(QWidget):
         for i, row in data.iterrows():
             for j, value in enumerate(row):
                 self.table.setItem(i, j, QTableWidgetItem(str(value)))
+
+    def export_report(self, report_df):
+        file_name, _ = QFileDialog.getSaveFileName(self, "Save Report", "", "Excel Files (*.xlsx);;PDF Files (*.pdf)")
+        if file_name.endswith('.xlsx'):
+            report_df.to_excel(file_name, index=False)
+            self.label.setText("Report saved successfully!")
+        elif file_name.endswith('.pdf'):
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", size=12)
+            
+            # Add table headers
+            for column in report_df.columns:
+                pdf.cell(40, 10, column, 1, 0, 'C')
+            pdf.ln()
+
+            # Add data
+            for _, row in report_df.iterrows():
+                for value in row:
+                    pdf.cell(40, 10, str(value), 1, 0, 'C')
+                pdf.ln()
+            
+            pdf.output(file_name)
+            self.label.setText("Report saved successfully!")
+
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
